@@ -1,13 +1,20 @@
 <?php 
 ob_start(); 
 session_start(); 
-if(isset($_SESSION['email'])){
+if(isset($_SESSION['email']) || ($_SESSION['id'])){
     header('location: index.php');
     exit();
 }
 
+
 include('header.php');
 include('connection.php');
+require 'PHPMailer/PHPMailer.php';
+require 'PHPMailer/SMTP.php';
+require 'PHPMailer/Exception.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 if(isset($_POST['add_user'])) {
     $f_name = mysqli_real_escape_string($connection, trim($_POST['f_name']));
@@ -21,7 +28,7 @@ if(isset($_POST['add_user'])) {
         exit();
     }
     
-    $query = "INSERT INTO `user` (`first_name`, `last_name`, `email`, `password`, `user_type`) 
+    $query = "INSERT INTO user (first_name, last_name, email, password, user_type) 
     VALUES ('$f_name', '$l_name', '$email', '$password', '$user_type')";
     
     $result = mysqli_query($connection, $query);
@@ -30,15 +37,44 @@ if(isset($_POST['add_user'])) {
         header("location:registration.php?message=Failed to register: " . mysqli_error($connection));
         exit();
     } else {
-        $_SESSION['email'] = $email;
-        $_SESSION['first_name'] = $f_name;
-        $_SESSION['last_name'] = $l_name;
-        $_SESSION['user_type'] = $user_type;
-        header("Location: index.php?insert_msg=" . urlencode("Registration successful"));
-        exit();
+            $_SESSION['email'] = $email;
+            $_SESSION['first_name'] = $f_name;
+            $_SESSION['last_name'] = $l_name;
+            $_SESSION['user_type'] = $user_type;
+    
+            // Send welcome email
+            $mail = new PHPMailer(true);
+            try {
+                // SMTP configuration
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com';                     //Set the SMTP server to send through
+                $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
+                $mail->Username   = 'bagdesameer92@gmail.com';                     //SMTP username
+                $mail->Password   = 'vxfc qvew spxm girh';                               //SMTP password
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
+                $mail->Port       = 465; 
+                $mail->setFrom('bagdesameer92@gmail.com', 'Bookly.');
+                $mail->addAddress($email, $f_name . ' ' . $l_name);
+                $mail->Subject = 'Welcome to Our Website!';
+                $mail->isHTML(true);
+                $mail->Body    = "<h3>Dear $f_name $l_name,</h3>
+                                  <p>Thank you for registering on our website. Your account has been successfully created.</p>
+                                  <p><strong>Email:</strong> $email</p>
+                                  <p>We hope you enjoy our services!</p>
+                                  <p>Best Regards,<br>Bookly Team</p>";
+    
+                // Send email
+                $mail->send();
+            } catch (Exception $e) {
+                error_log("Email could not be sent: " . $mail->ErrorInfo);
+            }
+    
+            header("Location: login.php?insert_msg=" . urlencode("Registration successful. A confirmation email has been sent."));
+            exit();
+        }
     }
-}
-?>
+    ?>
+    
 
 <div class="container d-flex justify-content-center mt-5">
     <div class="card p-4 " style="width: 400px;">
@@ -82,4 +118,4 @@ if(isset($_POST['add_user'])) {
 <?php ob_end_flush(); ?>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>  

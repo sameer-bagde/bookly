@@ -2,17 +2,6 @@
 ob_start(); 
 
 
-if (isset($_SESSION['id'])) {
-   $user_id = $_SESSION['id']; 
-
-} else {
-   $user_id = 0; 
-}
-
-if(!isset($user_id)){
-   header("location:registration.php?message=" . urlencode("Failed to register: " . mysqli_error($connection)));
-   exit();
-}
 
 if (isset($_POST['add_to_cart'])) {
    if ($user_id == 0) {
@@ -178,3 +167,7 @@ if (isset($_POST['add_to_cart'])) {
 
 </body>
 </html>
+
+<?php 
+ob_end_flush();  
+?>

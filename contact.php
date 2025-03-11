@@ -1,38 +1,72 @@
 <?php
 include 'connection.php';
 session_start();
+require 'PHPMailer/PHPMailer.php';
+require 'PHPMailer/SMTP.php';
+require 'PHPMailer/Exception.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 $user_id = isset($_SESSION['id']) ? $_SESSION['id'] : null;
 
-if(!isset($user_id)){
-   header('location:login.php');
-   exit();
+if (!isset($user_id)) {
+    header('location:login.php');
+    exit();
 }
 
-if(isset($_POST['send'])){
-   $name = mysqli_real_escape_string($connection, $_POST['name']);
-   $email = mysqli_real_escape_string($connection, $_POST['email']);
-   $number = $_POST['number'];
-   $msg = mysqli_real_escape_string($connection, $_POST['message']);
+if (isset($_POST['send'])) {
+    $name = mysqli_real_escape_string($connection, $_POST['name']);
+    $email = mysqli_real_escape_string($connection, $_POST['email']);
+    $number = $_POST['number'];
+    $msg = mysqli_real_escape_string($connection, $_POST['message']);
 
-   $select_message = mysqli_query($connection, "SELECT * FROM `message` WHERE name = '$name' AND email = '$email' AND number = '$number' AND message = '$msg'") or die('query failed');
+    $select_message = mysqli_query($connection, "SELECT * FROM `message` WHERE name = '$name' AND email = '$email' AND number = '$number' AND message = '$msg'");
 
-   if(mysqli_num_rows($select_message) > 0){
-       header("location: contact.php?message_warn=" . urlencode("Message sent already!"));
-       exit();
-   }else{
-      $insert = mysqli_query($connection, "INSERT INTO `message`(user_id, name, email, number, message) VALUES('$user_id', '$name', '$email', '$number', '$msg')");
-      if($insert){
-          header("location: contact.php?message_suc=" . urlencode("Message sent successfully!"));
-          exit();
+    if (mysqli_num_rows($select_message) > 0) {
+        header("location: contact.php?message_warn=" . urlencode("Message sent already!"));
+        exit();
+    } else {
+        $insert = mysqli_query($connection, "INSERT INTO `message`(user_id, name, email, number, message) VALUES('$user_id', '$name', '$email', '$number', '$msg')");
+        
+        if ($insert) {
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com';                     //Set the SMTP server to send through
+                $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
+                $mail->Username   = 'bagdesameer92@gmail.com';                     //SMTP username
+                $mail->Password   = 'vxfc qvew spxm girh';                               //SMTP password
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
+                $mail->Port       = 465; 
 
-      }else{
-          header("location: contact.php?message=" . urlencode("Message failed to send!"));
-          exit();
+                $mail->setFrom('bagdesameer92@gmail.com', 'Bookly.');
+                $mail->addAddress($email, $name);
+                $mail->Subject = 'Thank you for contacting us!';
+                $mail->isHTML(true);
 
-      }
-      exit();
-   }
+                $mailBody = "
+                    <h3>Hello, $name</h3>
+                    <p>Thank you for reaching out to us! We have received your message and will get back to you as soon as possible.</p>
+                    <p><strong>Your Message:</strong> $msg</p>
+                    <p>Best Regards,<br>Your Website Team</p>
+                ";
+
+                $mail->Body = $mailBody;
+                $mail->send();
+
+                header("location: contact.php?message_suc=" . urlencode("Message sent successfully!"));
+                exit();
+            } catch (Exception $e) {
+                error_log("Email sending failed: " . $mail->ErrorInfo);
+                header("location: contact.php?message=" . urlencode("Message sent but email failed to send."));
+                exit();
+            }
+        } else {
+            header("location: contact.php?message=" . urlencode("Message failed to send!"));
+            exit();
+        }
+    }
 }
 ?>
 

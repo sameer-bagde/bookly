@@ -1,6 +1,12 @@
 <?php
 
 include 'connection.php';
+require 'PHPMailer/PHPMailer.php';
+require 'PHPMailer/SMTP.php';
+require 'PHPMailer/Exception.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 session_start();
 
@@ -36,23 +42,106 @@ if(isset($_POST['order_btn'])){
    $order_query = mysqli_query($connection, "SELECT * FROM `orders` WHERE name = '$name' AND number = '$number' AND email = '$email' AND method = '$method' AND address = '$address' AND total_products = '$total_products' AND total_price = '$cart_total'") or die('query failed');
 
    if($cart_total == 0){
-    header('location:checkout.php?message='.urlencode('Your cart is empty'));
-    exit();
-}else{
-    if(mysqli_num_rows($order_query) > 0){
-        header('location:checkout.php?message_warn='.urlencode('Order already placed!'));
-        exit();
-    }else{
-        mysqli_query($connection, "INSERT INTO `orders`(user_id, name, number, email, method, address, total_products, total_price, placed_on) 
-        VALUES('$user_id', '$name', '$number', '$email', '$method', '$address', '$total_products', '$cart_total', '$placed_on')") 
-        or die('Query failed: ' . mysqli_error($connection));
-        
-        mysqli_query($connection, "DELETE FROM `cart` WHERE user_id = '$user_id'") or die('query failed');
-        
-        header('location:checkout.php?message_suc='.urlencode('Order placed successfully!'));
-        exit();
-    }
-} 
+      header('location:checkout.php?message='.urlencode('Your cart is empty'));
+      exit();
+   } else {
+      if(mysqli_num_rows($order_query) > 0){
+          header('location:checkout.php?message_warn='.urlencode('Order already placed!'));
+          exit();
+      } else {
+          // Insert order into database
+          $insert_order = mysqli_query($connection, "INSERT INTO `orders`(user_id, name, number, email, method, address, total_products, total_price, placed_on) 
+          VALUES('$user_id', '$name', '$number', '$email', '$method', '$address', '$total_products', '$cart_total', '$placed_on')") 
+          or die('Query failed: ' . mysqli_error($connection));
+          
+          // Get the order ID
+          $order_id = mysqli_insert_id($connection);
+          
+          if($insert_order){
+              // Send confirmation email
+              $mail = new PHPMailer(true);
+              
+              try {
+                  // Server settings
+                  $mail->isSMTP();
+                  $mail->Host       = 'smtp.gmail.com';
+                  $mail->SMTPAuth   = true;
+                  $mail->Username   = 'bagdesameer92@gmail.com';
+                  $mail->Password   = 'vxfc qvew spxm girh';
+                  $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+                  $mail->Port       = 465;
+                  
+                  // Recipients
+                  $mail->setFrom('bagdesameer92@gmail.com', 'Bookly.');
+                  $mail->addAddress($email, $name);
+                  
+                  // Content
+                  $mail->isHTML(true);
+                  $mail->Subject = 'Order Confirmation - Order #' . $order_id;
+                  
+                  // Build email body
+                  $emailBody = "
+                  <html>
+
+                  <body>
+                      <div class='container'>
+                          <div class='header'>
+                              <h2>Thank You for Your Order!</h2>
+                          </div>
+                          <div class='content'>
+                              <p>Hello <strong>$name</strong>,</p>
+                              <p>We're pleased to confirm that your order has been received and is being processed.</p>
+                              
+                              <div class='order-details'>
+                                  <h3>Order Details:</h3>
+                                  <p><strong>Order Number:</strong> #$order_id</p>
+                                  <p><strong>Order Date:</strong> $placed_on</p>
+                                  <p><strong>Payment Method:</strong> $method</p>
+                                  <p><strong>Shipping Address:</strong> $address</p>
+                                  
+                                  <div class='product-list'>
+                                      <h4>Products Ordered:</h4>
+                                      <p>$total_products</p>
+                                  </div>
+                                  
+                                  <div class='total'>
+                                      <p>Total Amount: $" . number_format($cart_total, 2) . "</p>
+                                  </div>
+                              </div>
+                              
+                              <p>If you have any questions about your order, please contact our customer service team.</p>
+                              <p>Thank you for shopping with us!</p>
+                          </div>
+                          <div class='footer'>
+                              <p>This is an automated email. Please do not reply to this message.</p>
+                          </div>
+                      </div>
+                  </body>
+                  </html>
+                  ";
+                  
+                  $mail->Body = $emailBody;
+                  $mail->send();
+                  
+                  mysqli_query($connection, "DELETE FROM `cart` WHERE user_id = '$user_id'") or die('query failed');
+                  header('location:checkout.php?message_suc='.urlencode('Order placed successfully! Confirmation email sent.'));
+                  exit();
+                  
+              } catch (Exception $e) {
+                  // Handle email sending failure
+                  error_log("Order confirmation email failed: " . $mail->ErrorInfo);
+                  
+                  // Still clear cart and redirect but with different message
+                  mysqli_query($connection, "DELETE FROM `cart` WHERE user_id = '$user_id'") or die('query failed');
+                  header('location:checkout.php?message_suc='.urlencode('Order placed successfully! Email could not be sent.'));
+                  exit();
+              }
+          } else {
+              header('location:checkout.php?message='.urlencode('Order could not be placed!'));
+              exit();
+          }
+      }
+   }
 }
 
 ?>
