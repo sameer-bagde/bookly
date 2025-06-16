@@ -1,7 +1,7 @@
 <?php 
 ob_start(); 
 session_start(); 
-if(isset($_SESSION['email']) || ($_SESSION['id'])){
+if(isset($_SESSION['email']) || isset($_SESSION['id'])){
     header('location: index.php');
     exit();
 }
@@ -28,8 +28,11 @@ if(isset($_POST['add_user'])) {
         exit();
     }
     
+    // Hash the password for security
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    
     $query = "INSERT INTO user (first_name, last_name, email, password, user_type) 
-    VALUES ('$f_name', '$l_name', '$email', '$password', '$user_type')";
+    VALUES ('$f_name', '$l_name', '$email', '$hashed_password', '$user_type')";
     
     $result = mysqli_query($connection, $query);
     
@@ -41,17 +44,19 @@ if(isset($_POST['add_user'])) {
             $_SESSION['first_name'] = $f_name;
             $_SESSION['last_name'] = $l_name;
             $_SESSION['user_type'] = $user_type;
+            $_SESSION['id'] = mysqli_insert_id($connection); 
+
     
             // Send welcome email
             $mail = new PHPMailer(true);
             try {
                 // SMTP configuration
                 $mail->isSMTP();
-                $mail->Host       = 'smtp.gmail.com';                     //Set the SMTP server to send through
-                $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
-                $mail->Username   = 'bagdesameer92@gmail.com';                     //SMTP username
-                $mail->Password   = 'vxfc qvew spxm girh';                               //SMTP password
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
+                $mail->Host       = 'smtp.gmail.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'bagdesameer92@gmail.com';
+                $mail->Password   = 'vxfc qvew spxm girh';
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
                 $mail->Port       = 465; 
                 $mail->setFrom('bagdesameer92@gmail.com', 'Bookly.');
                 $mail->addAddress($email, $f_name . ' ' . $l_name);
@@ -78,7 +83,7 @@ if(isset($_POST['add_user'])) {
 
 <div class="container d-flex justify-content-center mt-5">
     <div class="card p-4 " style="width: 400px;">
-        <h4 class="text-center mb-4">Register User</h4>
+        <h4 class="text-center mb-4">customer register</h4>
         <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post">
             <div class="form-group">
                 <label for="f_name">First Name</label>
@@ -118,4 +123,4 @@ if(isset($_POST['add_user'])) {
 <?php ob_end_flush(); ?>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>  
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
